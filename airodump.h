@@ -21,7 +21,6 @@ struct IEEE80211Header {
     uint8_t  addr2[6];
     uint8_t  addr3[6];
     uint16_t seqCtrl;
-    // 필요시 addr4, QoS Control 등 추가
 };
 #pragma pack(pop)
 
@@ -38,8 +37,6 @@ struct WirelessAPInfo {
 // 전역 MAP (BSSID -> AP 정보)
 extern std::map<std::string, WirelessAPInfo> g_apMap;
 
-// 함수 프로토타입
-
 // Radiotap에서 RSSI 값 추출
 int parseRadiotapRSSI(const u_char* packet, uint32_t caplen);
 
@@ -50,7 +47,6 @@ std::string parseEnc(const u_char* dot11, int dot11Len);
 // MAC 주소를 문자열로 변경경
 std::string macToStr(const uint8_t* mac);
 
-// 패킷 처리 핸들러
 void packetHandler(u_char* user, const struct pcap_pkthdr* header, const u_char* packet);
 
 // AP 리스트 출력

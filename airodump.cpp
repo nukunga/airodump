@@ -14,17 +14,16 @@ int parseRadiotapRSSI(const u_char* packet, uint32_t caplen) {
     const RadiotapHeader* rh = reinterpret_cast<const RadiotapHeader*>(packet);
     if (rh->it_len > caplen) return -999;
 
-    // 여기서는 "DBM_ANTSIGNAL이 14바이트 정도에 있다"라고 가정한 간단 버전.
-    // 실제로는 present mask, alignment 등을 정교하게 파싱해야 함.
+    // 안테나 시그널이 14바이트에 있다고 가정하고 파싱했음 
     int radiotapLen = rh->it_len;
     int rssiVal = -999;
     if (radiotapLen >= 14) {
-        rssiVal = *(int8_t*)(packet + 13); // 예: 14바이트 지점 - 1
+        rssiVal = *(int8_t*)(packet + 13);
     }
     return rssiVal;
 }
 
-// SSID 파싱 (Beacon/Probe Response 등)
+// SSID 파싱
 std::string parseSSID(const u_char* dot11, int dot11Len) {
     const int mgmtFixedLen = 12;
     if (dot11Len < mgmtFixedLen) return "";
@@ -43,7 +42,7 @@ std::string parseSSID(const u_char* dot11, int dot11Len) {
     return "";
 }
 
-// 암호화 파싱(RSN, WPA)
+// 암호화 파싱
 std::string parseEnc(const u_char* dot11, int dot11Len) {
     const int mgmtFixedLen = 12;
     if (dot11Len < mgmtFixedLen) return "OPN";
@@ -88,9 +87,10 @@ void packetHandler(u_char* user, const struct pcap_pkthdr* header, const u_char*
     int dot11Len = header->caplen - radiotapLen;
     if (dot11Len < (int)sizeof(IEEE80211Header)) return;
 
+    // addr3은 transmitter MAC 주소
     const IEEE80211Header* wh = reinterpret_cast<const IEEE80211Header*>(dot11);
     uint16_t fc = wh->frameControl;
-    uint8_t type    = (fc & 0x000c) >> 2; // 0:Mgmt,1:Ctrl,2:Data
+    uint8_t type    = (fc & 0x000c) >> 2; // 0:Mgmt
     uint8_t subtype = (fc & 0x00f0) >> 4; // 0~15
 
     // Beacon (Management, subtype=8)
@@ -116,28 +116,30 @@ void packetHandler(u_char* user, const struct pcap_pkthdr* header, const u_char*
         std::string enc = parseEnc(dot11 + sizeof(IEEE80211Header), dot11Len - sizeof(IEEE80211Header));
         g_apMap[bssid].enc = enc;
     }
-    // Data frame (type=2)
-    else if (type == 2) {
-        // addr2를 BSSID로 가정
-        std::string bssid = macToStr(wh->addr2);
-        if (g_apMap.find(bssid) != g_apMap.end()) {
-            g_apMap[bssid].dataCount++;
-        }
-    }
 }
 
-// AP 리스트 출력
 void printAPList() {
-    std::cout << " BSSID              PWR   Beacons  #Data   ENC   ESSID\n";
-    std::cout << " ----------------------------------------------------------\n";
+    std::cout 
+        << std::left  << std::setw(18) << "BSSID"
+        << std::right << std::setw(5)  << "PWR"
+        << std::right << std::setw(9)  << "Beacons"
+        << std::right << std::setw(8)  << "#Data"
+        << std::left  << std::setw(7)  << "  ENC"
+        << "ESSID" 
+        << "\n";
+
+    std::cout << "---------------------------------------------------------------\n";
+
+    // AP 목록
     for (auto &kv : g_apMap) {
         auto &ap = kv.second;
-        std::cout << " " << std::setw(17) << std::left << ap.bssid
-                  << std::setw(6) << ap.pwr
-                  << std::setw(9) << ap.beaconCount
-                  << std::setw(7) << ap.dataCount
-                  << std::setw(6) << ap.enc
-                  << "   " << ap.essid << "\n";
+        std::cout << std::left << std::setw(18) << ap.bssid;
+        std::cout << std::right << std::setw(5) << ap.pwr;
+        std::cout << std::right << std::setw(9) << ap.beaconCount;
+        std::cout << std::right << std::setw(8) << ap.dataCount;
+        std::cout << std::left << std::setw(7) << ("  " + ap.enc);
+        std::cout << ap.essid << "\n";
     }
+
     std::cout << std::endl;
 }
